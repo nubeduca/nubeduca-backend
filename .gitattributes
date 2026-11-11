@@ -1,0 +1,6 @@
+# Los scripts .sh corren dentro de contenedores Linux: forzar LF
+# para que no fallen con "bad interpreter: no such file".
+*.sh text eol=lf
+
+# Normalizar el resto de archivos de texto
+* text=auto

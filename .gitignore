@@ -1,0 +1,4 @@
+# LocalStack no persiste datos (PERSISTENCE=0), pero por si se activa:
+localstack/volume/
+localstack/.localstack/
+**/.env

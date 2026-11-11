@@ -1,0 +1,8 @@
+[
+  {
+    "EventBusName": "lms",
+    "Source": "lms.courses",
+    "DetailType": "lms.courses.enrollment.created.v1",
+    "Detail": "{\"metadata\":{\"eventId\":\"01JCSZXEYXVCDQTKPBJDDQVWM0\",\"tenantId\":\"utec\",\"occurredAt\":\"2026-11-13T15:23:00Z\",\"aggregateType\":\"enrollment\",\"aggregateId\":\"enr_01JCY7SYF5X0ZHRJ7KQSVX4BP0\",\"aggregateVersion\":1,\"courseId\":\"crs_01JCQRZHQT9F4WY2JYPDV546K7\",\"actorId\":\"c62d9930-b473-4b1d-adec-72fdda7cf599\",\"traceparent\":\"00-d37eed5ce9a4ceaae80e5964b5e3c62d-d37eed5ce9a4ceaa-01\"},\"data\":{\"enrollmentId\":\"enr_01JCY7SYF5X0ZHRJ7KQSVX4BP0\",\"courseId\":\"crs_01JCQRZHQT9F4WY2JYPDV546K7\",\"studentId\":\"a18577e2-e005-4a49-a29e-755dbf08f5b6\",\"role\":\"STUDENT\"}}"
+  }
+]

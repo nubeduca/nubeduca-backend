@@ -1,0 +1,41 @@
+# LOC-01 · Entorno local de Nubeduca con LocalStack
+# Levanta EventBridge, SQS, SNS, S3 y DynamoDB sin tocar AWS.
+#
+# Uso:
+#   docker compose up -d --wait
+#   docker compose down -v
+#
+# Los recursos (bucket, tabla, colas, topic, bus y regla) los crea
+# init/01-recursos.sh cuando LocalStack queda listo.
+
+services:
+  localstack:
+    image: localstack/localstack:4
+    container_name: nubeduca-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3,sqs,sns,dynamodb,events
+      - AWS_DEFAULT_REGION=us-east-1
+      - EAGER_SERVICE_LOADING=1
+      - DEBUG=0
+      - PERSISTENCE=0
+    volumes:
+      - ./init:/etc/localstack/init/ready.d:ro
+      - .:/opt/nubeduca:ro
+    healthcheck:
+      # "Healthy" = init/01-recursos.sh terminó: el bus, la regla, el target y
+      # la política de la cola ya existen. Si solo se comprueba SQS, el
+      # contenedor queda sano antes de crear la regla y el primer evento se pierde.
+      test:
+        - CMD-SHELL
+        - >-
+          awslocal events describe-rule --name nubeduca-local-enrollment-created
+          --event-bus-name lms >/dev/null 2>&1 &&
+          awslocal sqs get-queue-attributes
+          --queue-url http://localhost:4566/000000000000/nubeduca-local-cursos-eventos
+          --attribute-names Policy --output text | grep -q events.amazonaws.com
+      interval: 5s
+      timeout: 10s
+      retries: 60
+      start_period: 20s
