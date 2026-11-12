@@ -49,10 +49,15 @@ En Windows también hay un wrapper que además imprime el resumen y corrige las 
 | EventBridge | regla `nubeduca-local-enrollment-created` | `source = lms.courses`, `detail-type = lms.courses.enrollment.created.v1` |
 | SQS | `nubeduca-local-cursos-eventos` | destino de la regla; DLQ con `maxReceiveCount = 5` |
 | SQS | `nubeduca-local-cursos-eventos-dlq` | mensajes que fallan 5 veces |
-| SNS | `nubeduca-local-notificaciones` | suscrito a la cola `nubeduca-local-notificaciones` (raw delivery) |
+| SNS | `nubeduca-local-notificaciones` | suscrito a la cola `nubeduca-local-notificaciones` (raw delivery). ms-notificaciones publica aquí sus emails: se ven en esa cola |
 | SQS | `nubeduca-local-notificaciones` | consumidor de ejemplo del topic SNS |
 | S3 | `nubeduca-local-materiales` | material de cursos / archivos |
 | DynamoDB | `local-t_demo` | PK `tenant_id` + SK `sk`, modo `PAY_PER_REQUEST` |
+| DynamoDB | `local-t_notificaciones` | ENG-01 · tabla de ms-notificaciones (PK `tenant_id` + SK `sk`) |
+| EventBridge | regla `nubeduca-local-notificaciones` | ENG-01 · eventos que consume ms-notificaciones → `nubeduca-local-notificaciones-eventos` |
+| SQS | `nubeduca-local-notificaciones-eventos` | ENG-01 · DLQ `nubeduca-local-notificaciones-eventos-dlq` con `maxReceiveCount = 5` |
+| SNS | `local-notas.fifo` | ENG-01 · tópico FIFO de `grade.posted`, suscrito a `nubeduca-local-notificaciones-notas.fifo` (raw) |
+| SQS | `nubeduca-local-notificaciones-notas.fifo` | ENG-01 · DLQ `nubeduca-local-notificaciones-notas-dlq.fifo` |
 
 El script es **idempotente**: se puede correr las veces que haga falta (lo hace `up.ps1` después de arrancar).
 
