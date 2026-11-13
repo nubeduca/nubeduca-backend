@@ -2,7 +2,7 @@
 
 Cómo desplegar un microservicio con Serverless Framework a los 3 stages
 (`dev` / `staging` / `prod`) en la cuenta de **AWS Academy Learner Lab**, usando el
-`LabRole`. (Tarea PLT-01.)
+`LabRole`. (Tareas PLT-01 y PLT-05.)
 
 > Para desarrollo local sin tocar AWS ni gastar crédito, usa LocalStack (ver el [README](README.md)).
 
@@ -58,3 +58,24 @@ cuenta**. Falta decidir:
 - ¿Cuál Learner Lab es la **cuenta oficial** de integración?
 - El deploy integrado (REL-01 / REL-02) lo hacen Dev 1 + Dev 2 con el código de todos;
   los compañeros entregan su **repo**, no sus credenciales.
+
+## 7. CORS para Amplify (PLT-05)
+Para que el frontend en Amplify pueda llamar a un endpoint desde el navegador, cada
+microservicio habilita **CORS** en su `httpApi`. Es una línea en el `serverless.yml`:
+
+```yaml
+provider:
+  httpApi:
+    cors: true
+```
+
+Con eso, API Gateway responde el preflight `OPTIONS` y agrega las cabeceras
+`Access-Control-Allow-*`. Probado contra un endpoint de ejemplo:
+
+```
+OPTIONS /hello  -> 204 · access-control-allow-origin: * · access-control-allow-methods: GET,OPTIONS
+GET     /hello  -> 200 · access-control-allow-origin: *
+```
+
+> `cors: true` permite cualquier origen (suficiente para el MVP). Cuando el frontend
+> tenga su dominio fijo de Amplify, se puede restringir a ese origen.
