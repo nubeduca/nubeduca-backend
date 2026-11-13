@@ -1,4 +1,4 @@
-org: marianosanchez   # provisional, igual que en el bus
+# sin org para el deploy
 service: nubeduca-infra-auth
 
 provider:
