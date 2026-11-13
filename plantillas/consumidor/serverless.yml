@@ -1,0 +1,93 @@
+org: marianosanchez
+service: nubeduca-demo-consumidor   # en tu ms: el service de tu ms
+
+provider:
+  name: aws
+  runtime: python3.13
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  timeout: 20
+  iam:
+    role: arn:aws:iam::${aws:accountId}:role/LabRole
+
+custom:
+  # ===== EDITA SOLO ESTO =====
+  consumidor: demo                  # nombre corto de tu ms: calificaciones, cursos...
+  eventos:                          # detail-type de TODOS los eventos que tu ms escucha
+    - lms.grading.grade.posted.v1
+    - lms.courses.enrollment.created.v1
+  # ============================
+
+# Cuando tengas la Lambda, descomenta y ajusta:
+# functions:
+#   consumir_eventos:
+#     handler: consumidor.lambda_handler
+#     events:
+#       - sqs:
+#           arn: !GetAtt ColaEventos.Arn
+#           batchSize: 10
+#           functionResponseTypes:
+#             - ReportBatchItemFailures
+
+resources:
+  Resources:
+    ColaEventosDlq:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: nubeduca-${sls:stage}-${self:custom.consumidor}-eventos-dlq
+        MessageRetentionPeriod: 1209600   # 14 días
+
+    ColaEventos:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: nubeduca-${sls:stage}-${self:custom.consumidor}-eventos
+        VisibilityTimeout: 120            # al menos 6 veces el timeout de la Lambda
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt ColaEventosDlq.Arn
+          maxReceiveCount: 5
+
+    ReglaEventos:
+      Type: AWS::Events::Rule
+      Properties:
+        Name: nubeduca-${sls:stage}-${self:custom.consumidor}-eventos
+        EventBusName:
+          Fn::ImportValue: nubeduca-${sls:stage}-bus-name
+        EventPattern:
+          detail-type: ${self:custom.eventos}
+        Targets:
+          - Id: cola
+            Arn: !GetAtt ColaEventos.Arn
+
+    PoliticaColaEventos:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref ColaEventos
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: events.amazonaws.com
+              Action: sqs:SendMessage
+              Resource: !GetAtt ColaEventos.Arn
+              Condition:
+                ArnEquals:
+                  aws:SourceArn: !GetAtt ReglaEventos.Arn
+
+    AlarmaDlq:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: nubeduca-${sls:stage}-${self:custom.consumidor}-dlq-con-mensajes
+        AlarmDescription: Hay eventos que fallaron 5 veces y quedaron en la DLQ
+        Namespace: AWS/SQS
+        MetricName: ApproximateNumberOfMessagesVisible
+        Dimensions:
+          - Name: QueueName
+            Value: !GetAtt ColaEventosDlq.QueueName
+        Statistic: Maximum
+        Period: 60
+        EvaluationPeriods: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
