@@ -79,3 +79,28 @@ GET     /hello  -> 200 · access-control-allow-origin: *
 
 > `cors: true` permite cualquier origen (suficiente para el MVP). Cuando el frontend
 > tenga su dominio fijo de Amplify, se puede restringir a ese origen.
+
+## 8. Credenciales por `.env` y despliegue en cualquier cuenta
+El IaC no tiene ninguna cuenta fija: todo usa `${aws:accountId}` y `LabRole`.
+Cada dev pone **sus** credenciales en un `.env` (está en `.gitignore`) y los
+scripts las cargan como variables de entorno, lo que además evita el problema
+del token de la sección 3.
+
+```bash
+cp .env.example .env      # llena AWS_*, NUBEDUCA_AWS_ACCOUNT_ID y GITHUB_TOKEN_AMPLIFY
+scripts/cuenta.sh         # muestra la cuenta y el rol; se detiene si no coincide
+```
+
+`scripts/cuenta.sh` ignora `AWS_PROFILE` y `~/.aws/credentials`, y no sigue si
+la cuenta de las credenciales no es `NUBEDUCA_AWS_ACCOUNT_ID`. Así nadie
+despliega por error en otra cuenta que tenga configurada en su terminal.
+
+Frontend en Amplify (guarda el token en Secrets Manager, despliega y lanza el build):
+
+```bash
+infra/frontend/desplegar.sh dev
+```
+
+Para demostrar que funciona en cualquier cuenta, basta cambiar el `.env` por el
+de otro Learner Lab y volver a correr el mismo comando: sale otra app de Amplify
+con otra URL, sin tocar el código.

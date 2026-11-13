@@ -9,14 +9,11 @@ provider:
 # Reemplaza los pasos manuales de la consola del README del frontend:
 # conectar el repo, variables VITE_*, regla de rewrite de la SPA y Node 22.
 #
-# Requisito (una vez por cuenta): un token de GitHub con acceso de admin a
-# nubeduca/nubeduca-frontend guardado en Secrets Manager. NUNCA en el repo.
-#   aws secretsmanager create-secret --name nubeduca/github-amplify-token \
-#     --secret-string "$(pbpaste)"
+# Funciona en cualquier cuenta: las credenciales y el token de GitHub salen
+# del .env de quien despliega (ver .env.example en la raiz). NUNCA en el repo.
 #
-# Despliegue (despues de base, bus y los microservicios):
-#   serverless deploy --stage dev
-#   aws amplify start-job --app-id <AppId> --branch-name main --job-type RELEASE
+# Despliegue (guarda el token en Secrets Manager, despliega y lanza el build):
+#   infra/frontend/desplegar.sh dev
 #
 # Parametros opcionales (--param="clave=valor"):
 #   branch        rama del repo que se publica          (main)
