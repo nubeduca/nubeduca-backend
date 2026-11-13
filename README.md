@@ -10,7 +10,7 @@ Desde el 13 nov. (decisión **D1**) este repo es **solo infraestructura**. Cada 
 |---|---|---|---|
 | [`infra/base/`](infra/base/) | Bucket de despliegue y parámetros SSM `/nubeduca/<stage>/*` (nombre del bus, tenants) | PLT-03 | ✅ |
 | [`infra/bus/`](infra/bus/) | Bus `lms-<stage>` de EventBridge, Archive y SNS FIFO de notas | PLT-04 | ✅ |
-| `infra/auth/` | Cognito con `tenant_id` y rol en el token | AUTH-01 | ⏳ por hacer |
+| [`infra/auth/`](infra/auth/) | Cognito (User Pool y App Client) con `tenant_id` y rol en el token | AUTH-01 | ✅ en `main` (PR #9); `scripts/crear_usuarios_demo.sh` crea usuarios de prueba |
 | [`infra/frontend/`](infra/frontend/) | Amplify Hosting de `nubeduca-frontend` como IaC, con variables `VITE_*` leídas de SSM | PLT-06 | ✅ |
 | `infra/despliegue/` | VM `nubeduca-despliegue` (EC2 con `LabInstanceProfile`, sin puertos) | PLT-06 | 🟡 [PR #8](https://github.com/nubeduca/nubeduca-backend/pull/8) |
 | [`scripts/cuenta.sh`](scripts/cuenta.sh) | Carga las credenciales del `.env` y verifica la cuenta antes de desplegar | PLT-06 | ✅ |
