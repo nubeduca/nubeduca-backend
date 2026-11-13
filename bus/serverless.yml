@@ -7,7 +7,7 @@ provider:
   stage: ${opt:stage, 'dev'}
 
 custom:
-  busName: lms-${sls:stage}
+  busName: ${ssm:/nubeduca/${sls:stage}/bus-name, 'lms-${sls:stage}'}
   # Si LabRole no permite esquemas o archive, despliega con:
   #   sls deploy --param="esquemas=false" --param="archive=false"
   esquemas: ${param:esquemas, 'true'}
