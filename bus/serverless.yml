@@ -1,4 +1,4 @@
-org: marianosanchez   # provisional: cada dev usa su org; se unifica al integrar con Dev 1
+org: marianosanchez
 service: nubeduca-infra-bus
 
 provider:
@@ -8,60 +8,39 @@ provider:
 
 custom:
   busName: ${ssm:/nubeduca/${sls:stage}/bus-name, 'lms-${sls:stage}'}
-  # Si LabRole no permite esquemas o archive, despliega con:
-  #   sls deploy --param="esquemas=false" --param="archive=false"
-  esquemas: ${param:esquemas, 'true'}
-  archive: ${param:archive, 'true'}
 
 resources:
-  - Conditions:
-      CrearEsquemas:
-        Fn::Equals: ['${self:custom.esquemas}', 'true']
-      CrearArchive:
-        Fn::Equals: ['${self:custom.archive}', 'true']
+  Resources:
+    BusLms:
+      Type: AWS::Events::EventBus
+      Properties:
+        Name: ${self:custom.busName}
 
-    Resources:
-      BusLms:
-        Type: AWS::Events::EventBus
-        Properties:
-          Name: ${self:custom.busName}
+    ArchiveLms:
+      Type: AWS::Events::Archive
+      Properties:
+        ArchiveName: ${self:custom.busName}-archive
+        Description: Archivo de los eventos del bus para poder reprocesarlos
+        SourceArn: !GetAtt BusLms.Arn
+        RetentionDays: 7
 
-      ArchiveLms:
-        Type: AWS::Events::Archive
-        Condition: CrearArchive
-        Properties:
-          ArchiveName: ${self:custom.busName}-archive
-          Description: Archivo de los eventos del bus para poder reprocesarlos
-          SourceArn: !GetAtt BusLms.Arn
-          RetentionDays: 7
+    TopicNotasFifo:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: nubeduca-${sls:stage}-notas.fifo
+        FifoTopic: true
+        ContentBasedDeduplication: true
 
-      RegistroEsquemas:
-        Type: AWS::EventSchemas::Registry
-        Condition: CrearEsquemas
-        Properties:
-          RegistryName: ${self:custom.busName}
-          Description: Contratos JSON Schema de los eventos de Nubeduca
-
-      TopicNotasFifo:
-        Type: AWS::SNS::Topic
-        Properties:
-          TopicName: nubeduca-${sls:stage}-notas.fifo
-          FifoTopic: true
-          ContentBasedDeduplication: true
-
-    Outputs:
-      BusName:
-        Value: !Ref BusLms
-        Export:
-          Name: nubeduca-${sls:stage}-bus-name
-      BusArn:
-        Value: !GetAtt BusLms.Arn
-        Export:
-          Name: nubeduca-${sls:stage}-bus-arn
-      TopicNotasArn:
-        Value: !Ref TopicNotasFifo
-        Export:
-          Name: nubeduca-${sls:stage}-notas-topic-arn
-
-  # Un recurso AWS::EventSchemas::Schema por cada esquema de nubeduca-contratos
-  - ${file(./esquemas.js):generar}
+  Outputs:
+    BusName:
+      Value: !Ref BusLms
+      Export:
+        Name: nubeduca-${sls:stage}-bus-name
+    BusArn:
+      Value: !GetAtt BusLms.Arn
+      Export:
+        Name: nubeduca-${sls:stage}-bus-arn
+    TopicNotasArn:
+      Value: !Ref TopicNotasFifo
+      Export:
+        Name: nubeduca-${sls:stage}-notas-topic-arn
