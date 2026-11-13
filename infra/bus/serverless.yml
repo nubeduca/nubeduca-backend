@@ -1,4 +1,5 @@
-org: marianosanchez
+# Sin `org:` fija: Serverless v4 toma la org de SERVERLESS_ACCESS_KEY (o de `serverless login`),
+# así este stack se despliega en la cuenta de integración (D2) con scripts/desplegar.sh.
 service: nubeduca-infra-bus
 
 provider:

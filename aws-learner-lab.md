@@ -104,3 +104,32 @@ infra/frontend/desplegar.sh dev
 Para demostrar que funciona en cualquier cuenta, basta cambiar el `.env` por el
 de otro Learner Lab y volver a correr el mismo comando: sale otra app de Amplify
 con otra URL, sin tocar el código.
+
+## 9. Despliegue integrado desde la VM `nubeduca-despliegue` (PLT-06, D2)
+Todo lo integrado se despliega en la cuenta de integración (el Learner Lab de Dev 3) desde una VM EC2 con el rol `LabInstanceProfile`. La VM también es IaC (`infra/despliegue`) y no abre puertos: se entra por Session Manager.
+
+```bash
+# Una sola vez, desde tu laptop con el .env de la cuenta de integración:
+source scripts/cuenta.sh && cargar_cuenta
+(cd infra/despliegue && serverless deploy)
+aws ssm start-session --target <InstanciaId>      # sale en los outputs del stack
+```
+
+En la VM:
+
+```bash
+sudo -iu ec2-user
+cd nubeduca-backend && git pull
+cp .env.example .env    # NUBEDUCA_CREDENCIALES=instancia, cuenta, SERVERLESS_ACCESS_KEY y GITHUB_TOKEN_AMPLIFY
+scripts/desplegar.sh staging --con-seed
+```
+
+`scripts/desplegar.sh <stage>` despliega en orden `infra/base` → `infra/bus` → `infra/auth` (si existe) → los 6 `nubeduca-ms-*` → el frontend:
+- Clona o actualiza cada microservicio desde `main` en `NUBEDUCA_SERVICIOS_DIR`.
+- Un microservicio sin `serverless.yml` queda como **PENDIENTE** y no frena el resto.
+- Con `--con-seed`, corre el `poblar_datos.py` de cada servicio.
+- Al final hace una prueba de humo (`GET /health` de cada API, con la URL que el servicio publica en SSM) y muestra un resumen. Termina con error si algo falló.
+- `--solo usuarios,cursos` despliega solo esos microservicios.
+- `NUBEDUCA_SIMULAR=1` muestra los pasos sin tocar AWS.
+
+**Observabilidad:** la plantilla y los microservicios activan `tracing` de API Gateway y Lambda (X-Ray). Cada cola de consumidor tiene una alarma de CloudWatch que se dispara cuando un mensaje llega a su DLQ.
