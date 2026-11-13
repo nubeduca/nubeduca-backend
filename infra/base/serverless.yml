@@ -1,0 +1,49 @@
+service: nubeduca-base
+
+provider:
+  name: aws
+  runtime: python3.13
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  iam:
+    role: arn:aws:iam::${aws:accountId}:role/LabRole
+
+# Stack base: recursos compartidos que leen los demas stacks del proyecto.
+resources:
+  Resources:
+    # Bucket de despliegue compartido para los stacks del proyecto.
+    DeployBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: nubeduca-deploy-${sls:stage}-${aws:accountId}
+
+    # Nombre del bus de eventos POR stage: en una sola cuenta, "lms" solo
+    # chocaria entre dev/staging/prod, por eso lleva el sufijo del stage.
+    BusNameParam:
+      Type: AWS::SSM::Parameter
+      Properties:
+        Name: /nubeduca/${sls:stage}/bus-name
+        Type: String
+        Value: lms-${sls:stage}
+
+    TenantsParam:
+      Type: AWS::SSM::Parameter
+      Properties:
+        Name: /nubeduca/${sls:stage}/tenants
+        Type: String
+        Value: utec,upc,pucp
+
+    ProjectParam:
+      Type: AWS::SSM::Parameter
+      Properties:
+        Name: /nubeduca/${sls:stage}/project
+        Type: String
+        Value: nubeduca
+
+  Outputs:
+    DeployBucketName:
+      Description: Bucket de despliegue compartido
+      Value: !Ref DeployBucket
+    BusName:
+      Description: Nombre del bus de eventos de este stage
+      Value: lms-${sls:stage}

@@ -2,3 +2,6 @@
 localstack/volume/
 localstack/.localstack/
 **/.env
+
+# Artefactos de build de Serverless Framework
+**/.serverless/
