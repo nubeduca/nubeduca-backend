@@ -1,0 +1,113 @@
+service: nubeduca-frontend
+
+provider:
+  name: aws
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+
+# Hosting del frontend (nubeduca-frontend) en AWS Amplify, como IaC.
+# Reemplaza los pasos manuales de la consola del README del frontend:
+# conectar el repo, variables VITE_*, regla de rewrite de la SPA y Node 22.
+#
+# Requisito (una vez por cuenta): un token de GitHub con acceso de admin a
+# nubeduca/nubeduca-frontend guardado en Secrets Manager. NUNCA en el repo.
+#   aws secretsmanager create-secret --name nubeduca/github-amplify-token \
+#     --secret-string "$(pbpaste)"
+#
+# Despliegue (despues de base, bus y los microservicios):
+#   serverless deploy --stage dev
+#   aws amplify start-job --app-id <AppId> --branch-name main --job-type RELEASE
+#
+# Parametros opcionales (--param="clave=valor"):
+#   branch        rama del repo que se publica          (main)
+#   mocks         VITE_USE_MOCKS                         (true hasta tener APIs)
+#   authMode      VITE_AUTH_MODE: mock | cognito         (mock hasta AUTH-01)
+#   tokenSecret   nombre del secreto con el token GitHub (nubeduca/github-amplify-token)
+
+custom:
+  repo: https://github.com/nubeduca/nubeduca-frontend
+  branch: ${param:branch, 'main'}
+  tokenSecret: ${param:tokenSecret, 'nubeduca/github-amplify-token'}
+  # Cada microservicio publica la URL de su API en SSM; mientras no exista,
+  # queda vacia y el frontend sigue con mocks.
+  api:
+    usuarios: ${ssm:/nubeduca/${sls:stage}/api/usuarios/url, ''}
+    cursos: ${ssm:/nubeduca/${sls:stage}/api/cursos/url, ''}
+    contenidos: ${ssm:/nubeduca/${sls:stage}/api/contenidos/url, ''}
+    evaluaciones: ${ssm:/nubeduca/${sls:stage}/api/evaluaciones/url, ''}
+    calificaciones: ${ssm:/nubeduca/${sls:stage}/api/calificaciones/url, ''}
+    notificaciones: ${ssm:/nubeduca/${sls:stage}/api/notificaciones/url, ''}
+  # Cognito (AUTH-01) publicara estos parametros; vacios hasta entonces.
+  cognito:
+    userPoolId: ${ssm:/nubeduca/${sls:stage}/cognito/user-pool-id, ''}
+    clientId: ${ssm:/nubeduca/${sls:stage}/cognito/client-id, ''}
+
+resources:
+  Resources:
+    FrontendApp:
+      Type: AWS::Amplify::App
+      Properties:
+        Name: nubeduca-${sls:stage}
+        Description: Frontend de Nubeduca (React + Vite), stage ${sls:stage}
+        Repository: ${self:custom.repo}
+        AccessToken: '{{resolve:secretsmanager:${self:custom.tokenSecret}}}'
+        Platform: WEB
+        # El build usa el amplify.yml del repo del frontend (npm ci, npm run build, dist).
+        CustomRules:
+          # SPA: toda ruta sin extension de archivo estatico va a index.html.
+          - Source: '</^[^.]+$|\.(?!(css|gif|ico|jpg|jpeg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>'
+            Target: /index.html
+            Status: '200'
+        EnvironmentVariables:
+          # Fija Node 22 en la imagen de build de Amplify.
+          - Name: _LIVE_UPDATES
+            Value: '[{"name":"Node.js version","pkg":"node","type":"nvm","version":"22"}]'
+        Tags:
+          - Key: proyecto
+            Value: nubeduca
+          - Key: stage
+            Value: ${sls:stage}
+
+    FrontendBranch:
+      Type: AWS::Amplify::Branch
+      Properties:
+        AppId: !GetAtt FrontendApp.AppId
+        BranchName: ${self:custom.branch}
+        EnableAutoBuild: true
+        Framework: React
+        EnvironmentVariables:
+          - Name: VITE_USE_MOCKS
+            Value: ${param:mocks, 'true'}
+          - Name: VITE_AUTH_MODE
+            Value: ${param:authMode, 'mock'}
+          - Name: VITE_COGNITO_USER_POOL_ID
+            Value: ${self:custom.cognito.userPoolId}
+          - Name: VITE_COGNITO_CLIENT_ID
+            Value: ${self:custom.cognito.clientId}
+          - Name: VITE_API_USUARIOS
+            Value: ${self:custom.api.usuarios}
+          - Name: VITE_API_CURSOS
+            Value: ${self:custom.api.cursos}
+          - Name: VITE_API_CONTENIDOS
+            Value: ${self:custom.api.contenidos}
+          - Name: VITE_API_EVALUACIONES
+            Value: ${self:custom.api.evaluaciones}
+          - Name: VITE_API_CALIFICACIONES
+            Value: ${self:custom.api.calificaciones}
+          - Name: VITE_API_NOTIFICACIONES
+            Value: ${self:custom.api.notificaciones}
+
+    FrontendUrlParam:
+      Type: AWS::SSM::Parameter
+      Properties:
+        Name: /nubeduca/${sls:stage}/frontend/url
+        Type: String
+        Value: !Join ['', ['https://', '${self:custom.branch}', '.', !GetAtt FrontendApp.DefaultDomain]]
+
+  Outputs:
+    AmplifyAppId:
+      Description: Id de la app de Amplify (para aws amplify start-job)
+      Value: !GetAtt FrontendApp.AppId
+    FrontendUrl:
+      Description: URL publica del frontend
+      Value: !Join ['', ['https://', '${self:custom.branch}', '.', !GetAtt FrontendApp.DefaultDomain]]
