@@ -1,4 +1,4 @@
-# nubeduca-infra
+# nubeduca-backend
 
 Infraestructura compartida de Nubeduca (LMS SaaS multi-institución).
 
@@ -11,7 +11,7 @@ Un solo lugar para lo que **no** es código de un microservicio: entorno local, 
 | [`localstack/`](localstack/) | Entorno local con LocalStack (EventBridge, SQS, SNS, S3 y DynamoDB) | ✅ listo (LOC-01) |
 | [`aws-learner-lab.md`](aws-learner-lab.md) | Cómo desplegar a AWS (Learner Lab): credenciales, 3 stages y LabRole | ✅ PLT-01 |
 
-Más adelante, según el roadmap del proyecto: stacks de AWS (`base/`, `bus/`, `auth/`).
+Además: `infra/` (stacks `base/` y `bus/`, luego `auth/`), `services/` (los 6 microservicios, que se agregan al `serverless-compose.yml`), `plantillas/` (consumidor de eventos: regla + cola + DLQ + alarma) y `scripts/`. Convención de ramas en [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Empezar
 
