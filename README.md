@@ -1,23 +1,59 @@
 # nubeduca-backend
 
-Infraestructura compartida de Nubeduca (LMS SaaS multi-institución).
+Infraestructura compartida de Nubeduca (LMS SaaS multi-tenant: `utec`, `upc` y `pucp`).
 
-Un solo lugar para lo que **no** es código de un microservicio: entorno local, stacks base, bus de eventos y autenticación. Cualquier dev clona este repo para tener el mismo entorno que el resto.
+Desde el 13 nov. (decisión **D1**) este repo es **solo infraestructura**. Cada microservicio vive en su propio repo `nubeduca-ms-*`, creado desde [`nubeduca-plantilla-servicio`](https://github.com/nubeduca/nubeduca-plantilla-servicio). Aquí está lo que no es código de un microservicio: stacks compartidos, entorno local y scripts de despliegue.
 
 ## Contenido
 
-| Carpeta | Qué es | Estado |
-|---|---|---|
-| [`localstack/`](localstack/) | Entorno local con LocalStack (EventBridge, SQS, SNS, S3 y DynamoDB) | ✅ listo (LOC-01) |
-| [`aws-learner-lab.md`](aws-learner-lab.md) | Cómo desplegar a AWS (Learner Lab): credenciales, 3 stages y LabRole | ✅ PLT-01 |
+| Carpeta o archivo | Qué es | Tarea | Estado |
+|---|---|---|---|
+| [`infra/base/`](infra/base/) | Bucket de despliegue y parámetros SSM `/nubeduca/<stage>/*` (nombre del bus, tenants) | PLT-03 | ✅ |
+| [`infra/bus/`](infra/bus/) | Bus `lms-<stage>` de EventBridge, Archive y SNS FIFO de notas | PLT-04 | ✅ |
+| [`infra/auth/`](infra/auth/) | Cognito (User Pool y App Client) con `tenant_id` y rol en el token | AUTH-01 | ✅ en `main` (PR #9); `scripts/crear_usuarios_demo.sh` crea usuarios de prueba |
+| [`infra/frontend/`](infra/frontend/) | Amplify Hosting de `nubeduca-frontend` como IaC, con variables `VITE_*` leídas de SSM | PLT-06 | ✅ |
+| `infra/despliegue/` | VM `nubeduca-despliegue` (EC2 con `LabInstanceProfile`, sin puertos) | PLT-06 | 🟡 [PR #8](https://github.com/nubeduca/nubeduca-backend/pull/8) |
+| [`scripts/cuenta.sh`](scripts/cuenta.sh) | Carga las credenciales del `.env` y verifica la cuenta antes de desplegar | PLT-06 | ✅ |
+| `scripts/desplegar.sh` | Despliega todo en orden: base → bus → auth → 6 `ms-*` → frontend | PLT-06 | 🟡 [PR #8](https://github.com/nubeduca/nubeduca-backend/pull/8) |
+| [`localstack/`](localstack/) | Entorno local (EventBridge, SQS, SNS, S3 y DynamoDB) | LOC-01 | ✅ |
+| [`plantillas/`](plantillas/) | Consumidor de eventos (regla + cola + DLQ) y endpoint protegido | PLT-04, PLT-05 | ✅ |
+| [`aws-learner-lab.md`](aws-learner-lab.md) | Guía de AWS: credenciales, stages, LabRole, CORS, `.env` y despliegue integrado | PLT-01, PLT-05, PLT-06 | ✅ |
 
-Además: `infra/` (stacks `base/` y `bus/`, luego `auth/`), `services/` (los 6 microservicios, que se agregan al `serverless-compose.yml`), `plantillas/` (consumidor de eventos: regla + cola + DLQ + alarma) y `scripts/`. Convención de ramas en [CONTRIBUTING.md](CONTRIBUTING.md).
+Convención de ramas y PRs en [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Empezar
+## Desplegar en AWS
+
+Las credenciales nunca van en el repo: cada dev usa un `.env` propio, que está en `.gitignore`.
 
 ```bash
-git clone git@github.com:nubeduca/nubeduca-infra.git
-cd nubeduca-infra/localstack
+cp .env.example .env      # credenciales del Learner Lab, NUBEDUCA_AWS_ACCOUNT_ID, GITHUB_TOKEN_AMPLIFY, SERVERLESS_ACCESS_KEY
+scripts/cuenta.sh         # muestra la cuenta y el rol; se detiene si no es NUBEDUCA_AWS_ACCOUNT_ID
+```
+
+**Cuenta de integración (D2):** es el Learner Lab de Dev 3. Todo lo integrado se despliega desde la VM `nubeduca-despliegue` con:
+
+```bash
+scripts/desplegar.sh staging --con-seed
+```
+
+En la VM, `NUBEDUCA_CREDENCIALES=instancia` hace que se use el rol de la instancia y no claves. El paso a paso está en la sección 9 de [`aws-learner-lab.md`](aws-learner-lab.md).
+
+**Un stack suelto, en tu propia cuenta:**
+
+```bash
+source scripts/cuenta.sh && cargar_cuenta
+(cd infra/base && serverless deploy --stage dev)
+(cd infra/bus && serverless deploy --stage dev)
+infra/frontend/desplegar.sh dev           # Amplify: guarda el token en Secrets Manager, despliega y lanza el build
+```
+
+Los `serverless.yml` no fijan `org:` (salvo `infra/auth`, que todavía tiene la org provisional `marianosanchez` hasta que exista la del equipo). Serverless v4 usa la org de `SERVERLESS_ACCESS_KEY` (la del equipo) o la de `serverless login`, así que el mismo IaC se despliega en cualquier cuenta.
+
+## Entorno local
+
+```bash
+git clone https://github.com/nubeduca/nubeduca-backend.git
+cd nubeduca-backend/localstack
 docker compose up -d --wait
 ```
 
@@ -39,6 +75,8 @@ Detalle de recursos, variables de entorno y troubleshooting: [`localstack/README
 
 ## Reglas del repo
 
-- Los scripts `.sh` corren dentro de contenedores Linux: se fuerzan a **LF** con `.gitattributes` (Windows incluido).
-- Un recurso nuevo se agrega en `localstack/init/01-recursos.sh`, que es idempotente.
-- Nada de credenciales reales en el repo: LocalStack usa `test` / `test`.
+- `main` está protegida: todo entra por PR con 1 aprobación y la CI en verde (yamllint, ruff y pytest).
+- Los scripts `.sh` corren en Linux: se fuerzan a **LF** con `.gitattributes`, también en Windows.
+- Un recurso local nuevo se agrega en `localstack/init/01-recursos.sh`, que es idempotente.
+- Nada de credenciales reales en el repo: LocalStack usa `test` / `test`, y en AWS se usa el `.env` de cada dev.
+- `services/` es del diseño anterior (monorepo). Con D1 ya no se usa y lo retira el PR de seguimiento de PLT-02.
