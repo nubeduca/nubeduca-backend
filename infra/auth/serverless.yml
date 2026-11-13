@@ -1,0 +1,80 @@
+org: marianosanchez   # provisional, igual que en el bus
+service: nubeduca-infra-auth
+
+provider:
+  name: aws
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+
+resources:
+  Resources:
+    UserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName: nubeduca-${sls:stage}
+        UsernameAttributes:
+          - email
+        AutoVerifiedAttributes:
+          - email
+        AdminCreateUserConfig:
+          AllowAdminCreateUserOnly: true
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireLowercase: true
+            RequireUppercase: true
+            RequireNumbers: true
+            RequireSymbols: false
+        Schema:
+          - Name: tenant_id
+            AttributeDataType: String
+            Mutable: true
+            StringAttributeConstraints:
+              MinLength: '2'
+              MaxLength: '32'
+          - Name: role
+            AttributeDataType: String
+            Mutable: true
+            StringAttributeConstraints:
+              MinLength: '4'
+              MaxLength: '10'
+
+    UserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: nubeduca-${sls:stage}-web
+        UserPoolId: !Ref UserPool
+        GenerateSecret: false
+        PreventUserExistenceErrors: ENABLED
+        ExplicitAuthFlows:
+          - ALLOW_USER_PASSWORD_AUTH
+          - ALLOW_USER_SRP_AUTH
+          - ALLOW_REFRESH_TOKEN_AUTH
+        ReadAttributes:
+          - email
+          - email_verified
+          - custom:tenant_id
+          - custom:role
+        WriteAttributes:
+          - email
+        TokenValidityUnits:
+          IdToken: minutes
+          AccessToken: minutes
+          RefreshToken: days
+        IdTokenValidity: 60
+        AccessTokenValidity: 60
+        RefreshTokenValidity: 1
+
+  Outputs:
+    UserPoolId:
+      Value: !Ref UserPool
+      Export:
+        Name: nubeduca-${sls:stage}-user-pool-id
+    UserPoolArn:
+      Value: !GetAtt UserPool.Arn
+      Export:
+        Name: nubeduca-${sls:stage}-user-pool-arn
+    UserPoolClientId:
+      Value: !Ref UserPoolClient
+      Export:
+        Name: nubeduca-${sls:stage}-user-pool-client-id

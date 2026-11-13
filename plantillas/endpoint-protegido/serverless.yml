@@ -1,0 +1,25 @@
+org: marianosanchez
+service: nubeduca-demo-endpoint-protegido
+
+provider:
+  name: aws
+  runtime: python3.13
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  timeout: 10
+  iam:
+    role: arn:aws:iam::${aws:accountId}:role/LabRole
+
+functions:
+  quien_soy:
+    handler: handler.lambda_handler
+    events:
+      - http:
+          path: /demo/quien-soy
+          method: get
+          cors: true
+          authorizer:
+            name: cognito
+            type: COGNITO_USER_POOLS
+            arn:
+              Fn::ImportValue: nubeduca-${sls:stage}-user-pool-arn

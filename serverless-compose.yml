@@ -6,3 +6,6 @@ services:
   bus:
     path: infra/bus
     dependsOn: base
+  auth:
+    path: infra/auth
+    dependsOn: base
