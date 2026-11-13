@@ -47,7 +47,7 @@ source scripts/cuenta.sh && cargar_cuenta
 infra/frontend/desplegar.sh dev           # Amplify: guarda el token en Secrets Manager, despliega y lanza el build
 ```
 
-Ningún `serverless.yml` fija `org:`. Serverless v4 usa la org de `SERVERLESS_ACCESS_KEY` (la del equipo) o la de `serverless login`, así que el mismo IaC se despliega en cualquier cuenta.
+Los `serverless.yml` no fijan `org:` (salvo `infra/auth`, que todavía tiene la org provisional `marianosanchez` hasta que exista la del equipo). Serverless v4 usa la org de `SERVERLESS_ACCESS_KEY` (la del equipo) o la de `serverless login`, así que el mismo IaC se despliega en cualquier cuenta.
 
 ## Entorno local
 
