@@ -1,0 +1,75 @@
+service: nubeduca-despliegue
+
+provider:
+  name: aws
+  region: us-east-1
+  stage: ${opt:stage, 'integracion'}
+
+# VM nubeduca-despliegue (PLT-06, decisión D2): desde aquí se despliega todo lo integrado
+# con scripts/desplegar.sh, usando el rol de la instancia (LabInstanceProfile), así que no
+# hacen falta claves en el .env de la VM.
+#
+#   serverless deploy                       # desde tu laptop, una sola vez por cuenta
+#   aws ssm start-session --target <InstanciaId>
+#   sudo -iu ec2-user
+#   cd nubeduca-backend && cp .env.example .env    # NUBEDUCA_CREDENCIALES=instancia
+#   scripts/desplegar.sh staging --con-seed
+#
+# Sin puertos abiertos: se entra por Session Manager, no por SSH.
+#
+# Parámetros (--param="clave=valor"):
+#   tipo      tipo de instancia                       (t3.small)
+#
+# Va en la subred por defecto de la VPC por defecto de la cuenta (la que trae el Learner Lab).
+
+custom:
+  tipo: ${param:tipo, 't3.small'}
+  nodeVersion: v22.11.0
+
+resources:
+  Resources:
+    GrupoSeguridad:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: nubeduca-despliegue sin entrada (acceso por Session Manager); salida libre por defecto
+        Tags:
+          - Key: Name
+            Value: nubeduca-despliegue
+
+    Instancia:
+      Type: AWS::EC2::Instance
+      Properties:
+        ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}'
+        InstanceType: ${self:custom.tipo}
+        IamInstanceProfile: LabInstanceProfile
+        SecurityGroupIds:
+          - !GetAtt GrupoSeguridad.GroupId
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              VolumeSize: 20
+              VolumeType: gp3
+        Tags:
+          - Key: Name
+            Value: nubeduca-despliegue
+          - Key: proyecto
+            Value: nubeduca
+        UserData:
+          Fn::Base64: |
+            #!/bin/bash
+            set -euxo pipefail
+            dnf install -y git python3 python3-pip tar xz
+            cd /opt
+            curl -fsSLO https://nodejs.org/dist/${self:custom.nodeVersion}/node-${self:custom.nodeVersion}-linux-x64.tar.xz
+            tar -xJf node-${self:custom.nodeVersion}-linux-x64.tar.xz
+            ln -sf /opt/node-${self:custom.nodeVersion}-linux-x64/bin/* /usr/local/bin/
+            npm install -g serverless@4
+            ln -sf /opt/node-${self:custom.nodeVersion}-linux-x64/bin/serverless /usr/local/bin/serverless
+            sudo -u ec2-user python3 -m pip install --user boto3
+            sudo -u ec2-user git clone https://github.com/nubeduca/nubeduca-backend.git /home/ec2-user/nubeduca-backend
+            echo "listo" > /home/ec2-user/nubeduca-despliegue-listo
+
+  Outputs:
+    InstanciaId:
+      Description: Para entrar con aws ssm start-session --target <InstanciaId>
+      Value: !Ref Instancia

@@ -37,8 +37,18 @@ cargar_cuenta() {
   unset AWS_PROFILE AWS_DEFAULT_PROFILE AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
   _leer_env "$archivo"
 
+  # En la VM nubeduca-despliegue las credenciales salen del rol de la instancia
+  # (LabInstanceProfile): NUBEDUCA_CREDENCIALES=instancia y sin claves en el .env.
+  local requeridas=(AWS_REGION NUBEDUCA_AWS_ACCOUNT_ID)
+  if [ "${NUBEDUCA_CREDENCIALES:-claves}" = "instancia" ]; then
+    unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+    # Solo el rol de la instancia: nada de ~/.aws (en una laptop serían otras credenciales).
+    export AWS_SHARED_CREDENTIALS_FILE=/dev/null AWS_CONFIG_FILE=/dev/null
+  else
+    requeridas+=(AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY)
+  fi
   local falta=()
-  for v in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION NUBEDUCA_AWS_ACCOUNT_ID; do
+  for v in "${requeridas[@]}"; do
     [ -n "${!v:-}" ] || falta+=("$v")
   done
   if [ ${#falta[@]} -gt 0 ]; then
@@ -46,6 +56,7 @@ cargar_cuenta() {
     return 1
   fi
   [ -n "${AWS_SESSION_TOKEN:-}" ] || unset AWS_SESSION_TOKEN
+  [ -n "${AWS_ACCESS_KEY_ID:-}" ] || unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
   export AWS_DEFAULT_REGION="$AWS_REGION"
 
   local identidad cuenta arn
