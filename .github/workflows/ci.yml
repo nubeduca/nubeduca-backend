@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install yamllint ruff
+      - name: Lint de YAML (serverless.yml, compose, workflows)
+        run: yamllint -c .yamllint.yml .
+      - name: Lint de Python
+        run: ruff check .
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Ejecutar pytest si hay tests
+        run: |
+          pip install pytest boto3
+          if find . -name 'test_*.py' -not -path './node_modules/*' | grep -q .; then
+            pytest -q
+          else
+            echo "Todavía no hay tests; el job pasa."
+          fi

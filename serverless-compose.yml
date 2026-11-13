@@ -1,0 +1,8 @@
+# Despliega todo con:  serverless deploy --stage dev
+# Orden: base -> bus -> auth -> microservicios. Cada servicio nuevo se agrega aquí.
+services:
+  base:
+    path: infra/base
+  bus:
+    path: infra/bus
+    dependsOn: base

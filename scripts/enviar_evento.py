@@ -1,5 +1,6 @@
-import sys
 import json
+import sys
+
 import boto3
 
 
