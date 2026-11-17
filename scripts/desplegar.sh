@@ -13,6 +13,11 @@
 # Termina con una prueba de humo (GET /health de cada API) y un resumen.
 set -uo pipefail
 
+# En Git Bash (Windows) evita que se conviertan a rutas los argumentos con "/"
+# (p. ej. el nombre SSM "/nubeduca/<stage>/api/<ms>/url" de la prueba de humo).
+# Inofensivo en Linux (la VM nubeduca-despliegue).
+export MSYS_NO_PATHCONV=1
+
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MICROSERVICIOS=(usuarios cursos contenidos evaluaciones calificaciones notificaciones)
 ORG_GIT="https://github.com/nubeduca"
