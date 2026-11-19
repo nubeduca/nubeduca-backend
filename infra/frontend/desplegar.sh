@@ -9,6 +9,10 @@
 # ESA cuenta, corre serverless deploy, lanza el build de la rama y espera.
 set -euo pipefail
 
+# En Git Bash (Windows), evita que se conviertan a rutas los argumentos con "/"
+# como el secret-id "nubeduca/github-amplify-token". Inofensivo en Linux (la VM).
+export MSYS_NO_PATHCONV=1
+
 STAGE="${1:?Uso: infra/frontend/desplegar.sh <stage> [opciones de serverless]}"
 shift
 
@@ -28,11 +32,14 @@ TMP="$(mktemp)"
 trap 'rm -f "$TMP"' EXIT
 chmod 600 "$TMP"
 printf '%s' "$GITHUB_TOKEN_AMPLIFY" > "$TMP"
+# En Git Bash (Windows) el aws nativo no entiende la ruta /tmp/...; cygpath la pasa a C:/...
+RUTA_TMP="$TMP"
+command -v cygpath > /dev/null && RUTA_TMP="$(cygpath -m "$TMP")"
 if aws secretsmanager describe-secret --secret-id "$SECRETO" > /dev/null 2>&1; then
-  aws secretsmanager put-secret-value --secret-id "$SECRETO" --secret-string "file://$TMP" > /dev/null
+  aws secretsmanager put-secret-value --secret-id "$SECRETO" --secret-string "file://$RUTA_TMP" > /dev/null
   echo "Secreto $SECRETO actualizado."
 else
-  aws secretsmanager create-secret --name "$SECRETO" --secret-string "file://$TMP" \
+  aws secretsmanager create-secret --name "$SECRETO" --secret-string "file://$RUTA_TMP" \
     --description "Token de GitHub para que Amplify conecte nubeduca-frontend" > /dev/null
   echo "Secreto $SECRETO creado."
 fi
