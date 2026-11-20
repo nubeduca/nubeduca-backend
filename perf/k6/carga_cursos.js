@@ -28,11 +28,12 @@ const PERFIL = __ENV.PERFIL || 'corto';
 const ROL = __ENV.ROL || 'mixto';
 
 // Rampas de usuarios virtuales. Ajustar a la sección 13 del documento de arquitectura.
+// corto: ~5 usuarios durante ~1,5 min ≈ 700 peticiones (centavos en el Learner Lab).
 const PERFILES = {
   corto: [
-    { duration: '30s', target: 10 },
-    { duration: '1m', target: 10 },
-    { duration: '15s', target: 0 },
+    { duration: '20s', target: 5 },
+    { duration: '1m', target: 5 },
+    { duration: '10s', target: 0 },
   ],
   estres: [
     { duration: '2m', target: 50 },
@@ -44,6 +45,10 @@ const PERFILES = {
 };
 if (!PERFILES[PERFIL]) {
   throw new Error(`PERFIL desconocido: ${PERFIL} (usa corto o estres)`);
+}
+// Seguro: el perfil estres consume más presupuesto del Learner Lab. Solo corre con -e CONFIRMAR=si.
+if (PERFIL === 'estres' && __ENV.CONFIRMAR !== 'si') {
+  throw new Error('PERFIL=estres gasta presupuesto del Learner Lab: agrega -e CONFIRMAR=si si de verdad quieres correrlo');
 }
 
 export const options = {

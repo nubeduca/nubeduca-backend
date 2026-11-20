@@ -1,181 +1,78 @@
-# PC1: Practica Calificada #1
-**course:** Programación III  
-**unit:** 1 y 2  
-**cmake project:** prog3_pc1_teo3_v2023_2
-## Indicaciones Específicas
-- El tiempo límite para la evaluación es 100 minutos.
-- Cada pregunta deberá ser respondida en un archivo fuente (`.cpp`) y un archivo cabecera (`.h`) con el número de la pregunta:
-    - `P1.cpp, P1.h`
-    - `P2.cpp, P2.h`
-- Deberás subir estos archivos directamente a [www.gradescope.com](https://www.gradescope.com) o se puede crear un `.zip` que contenga todos ellos y subirlo.
+# Prueba de carga (PERF-01)
 
+Scripts de [k6](https://k6.io), tokens de prueba y dashboard de CloudWatch. La corrida corta (`PERFIL=corto`) va contra `dev`. La prueba de estrés (`PERFIL=estres`) es PERF-02 y va contra `staging`.
 
-## Question #1 - clases, punteros y sobrecarga de operadores y template de clases (14 points)
-
-El Sudoku es un juego de lógica en el que se rellena un tablero dividido en subgrupos con números o caracteres únicos en cada fila, columna y subgrupo. Desarrollar un tablero `table` de Sudoku genérico dentro del namespace `sudoku` que pueda adaptarse a diferentes tamaños y tipos de datos, y que utilice memoria dinámica para su almacenamiento.
-
-Construir un tablero Sudoku genérico, permitiendo diferentes tamaños basados en el parámetro de template no tipo `sub_groups` que representa la dimension de cada sub grupo y el parametro `T` que representa el tipo de dato que almacerara el tablero (por ejemplo, int o char).
-
-El tablero debe ser almacenado en memoria dinámica. Implementar los constructores adecuados para inicializar y copiar tableros, así como un destructor para liberar la memoria correctamente.
-
-Para facilitar la impresión del tablero con un formato adecuado sobrecargar el operador `<<`. También implemente las sobrecargas del operador () para acceder y modificar celdas individuales, similar a lo desarrollado en el ejercicio matriz.
-
-Proporcionar el método `is_valid` que valide si la disposición actual del tablero respeta las reglas del Sudoku retornando `true` si todas las siguentes reglas se cumplen:
-  - Cada fila tiene números o caracteres únicos que suman el total esperado.
-  - Cada columna tiene números o caracteres únicos que suman el total esperado.
-  - Cada subgrupo tiene números o caracteres únicos que suman el total esperado.
-
-Consejos:
-- Recuerde gestionar la memoria de manera eficiente utilizando `new` para la asignación y `delete[]` para la liberación, evitando así potenciales fugas de memoria.
-- Para el cálculo del total esperado de cada regla, mencionada en el parrafo anterior, utilizar la siguiente formula:
-  ```
-    [total esperado] = ([valor inicial] + [valor final]) * [cantidad de terminos] / 2
-  
-    ejemplo:
-      si el rango de valores validos del sudoku esta entre 1 y 9
-      [total esperado] = (1 + 9) * 9 / 2 = 45
-  
-      si el rango de valores validos del sudoku esta entre 'A'(65) y 'D'(68)
-      [total esperado] = (65 + 68) * 4 / 2 = 266
-  ```
-
-**Use Case #1:**
-```cpp
-  sudoku::table<int, 3> st = {
-    1, 2, 3, 1, 2, 3, 1, 2, 3,
-    4, 5, 6, 4, 5, 6, 4, 5, 6,
-    7, 8, 9, 7, 8, 9, 7, 8, 9,
-    1, 2, 3, 1, 2, 3, 1, 2, 3,
-    4, 5, 6, 4, 5, 6, 4, 5, 6,
-    7, 8, 9, 7, 8, 9, 7, 8, 9,
-    1, 2, 3, 1, 2, 3, 1, 2, 3,
-    4, 5, 6, 4, 5, 6, 4, 5, 6,
-    7, 8, 9, 7, 8, 9, 7, 8, 9
-  };
-  cout << st;
+```text
+perf/
+├── k6/carga_cursos.js          # escenario: listar cursos y ver el detalle, con utec/upc/pucp en 15/10/5
+├── tokens/generar_tokens.sh    # ID tokens de Cognito de los usuarios demo (solo con authMode=cognito)
+└── reportes/                   # salida de cada corrida (no se sube)
+infra/observabilidad/           # dashboard nubeduca-<stage> en CloudWatch
 ```
 
-**Use Case #2:**
-```cpp
-  sudoku::table<int, 3> st = {
-    1, 2, 3, 1, 2, 3, 1, 2, 3,
-    4, 5, 6, 4, 5, 6, 4, 5, 6,
-    7, 8, 9, 7, 8, 9, 7, 8, 9,
-    1, 2, 3, 1, 2, 3, 1, 2, 3,
-    4, 5, 6, 4, 5, 6, 4, 5, 6,
-    7, 8, 9, 7, 8, 9, 7, 8, 9,
-    1, 2, 3, 1, 2, 3, 1, 2, 3,
-    4, 5, 6, 4, 5, 6, 4, 5, 6,
-    7, 8, 9, 7, 8, 9, 7, 8, 9
-  };
-  cout << boolalpha << st.is_valid() << endl;
+## 1. Dashboard
 
-  sudoku::table<int, 3> st2 = {
-    1, 2, 3, 4, 5, 6, 7, 8, 9,
-    4, 5, 6, 7, 8, 9, 1, 2, 3,
-    7, 8, 9, 1, 2, 3, 4, 5, 6,
-    2, 3, 4, 5, 6, 7, 8, 9, 1,
-    5, 6, 7, 8, 9, 1, 2, 3, 4,
-    8, 9, 1, 2, 3, 4, 5, 6, 7,
-    3, 4, 5, 6, 7, 8, 9, 1, 2,
-    6, 7, 8, 9, 1, 2, 3, 4, 5,
-    9, 1, 2, 3, 4, 5, 6, 7, 8
-  };
-  cout << boolalpha << st2.is_valid() << endl;
+```bash
+cd infra/observabilidad && serverless deploy --stage dev && cd ../..
 ```
 
-**Use Case #3:**
+En CloudWatch → Dashboards → `nubeduca-dev`. Usa expresiones `SEARCH`, así que muestra todos los recursos `nubeduca` del stage (API Gateway, Lambda, DynamoDB, SQS, DLQ y reglas de EventBridge) sin listarlos a mano.
 
-```cpp
-  sudoku::table<int, 2> st = {
-    1, 2, 3, 4,
-    3, 4, 1, 2,
-    2, 3, 4, 1,
-    4, 1, 2, 3};
-  cout << boolalpha << st.is_valid() << endl;
-  auto st2 = st;
-  sudoku::table<int, 2> st3;
-  st3 = st2;
-  st2(0, 0) = 4;
-  cout << boolalpha << st.is_valid() << endl;
-  cout << boolalpha << st2.is_valid() << endl;
-  cout << boolalpha << st3.is_valid() << endl;
+## 2. Instalar k6 (Cloud9, Ubuntu)
+
+```bash
+V=$(curl -s https://api.github.com/repos/grafana/k6/releases/latest | grep -oP '"tag_name": "\K[^"]+')
+curl -sL "https://github.com/grafana/k6/releases/download/$V/k6-$V-linux-amd64.tar.gz" | tar xz -C /tmp
+sudo mv "/tmp/k6-$V-linux-amd64/k6" /usr/local/bin/ && k6 version
 ```
 
-**Use Case #4:**
+## 3. Corrida corta contra dev
 
-```cpp
-  sudoku::table<char, 2> st = {
-    'A', 'B', 'C', 'D',
-    'C', 'D', 'A', 'B',
-    'B', 'C', 'D', 'A',
-    'D', 'A', 'B', 'C',};
-  cout << boolalpha << st.is_valid() << endl;
-  st(0,0) = 'D';
-  cout << boolalpha << st.is_valid() << endl;
-  for (int i = 0; i < st.cells(); ++i){
-    for (int j = 0; j < st.cells(); ++j)
-      cout << setw(3) << st(i, j);
-    cout << endl;
-  }
+Con `ms-cursos` desplegado en `dev` (y su seed cargado):
+
+```bash
+mkdir -p perf/reportes
+URL=$(aws ssm get-parameter --name /nubeduca/dev/api/cursos/url --query Parameter.Value --output text)
+K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=perf/reportes/reporte-corto.html \
+  k6 run -e BASE_URL="$URL" perf/k6/carga_cursos.js
 ```
 
-## Question #2 - template de función (6 points)
+Con Cognito (`authMode=cognito` en el servicio):
 
-Desarrolla una función llamada `find_median_of_concatenated` que cumpla con las siguientes características:
-
-- La función debe ser un template que pueda trabajar con diferentes tipos de contenedores.
-- Utiliza `variadic templates` para que la función acepte un número variable de contenedores como argumentos.
-- La función debe concatenar los contenidos de todos los contenedores proporcionados.
-- Una vez que todos los elementos están ordenados en un único contenedor, la función deberá encontrar la mediana de los valores y retornas en un `std::pair<T, ContainerResult<T>>` la media y el contenedor ordenando.
-- Si el número total de elementos es impar, retorna el elemento central. Si es par, retorna el promedio de los dos elementos centrales.
-- Por defecto, el contenedor utilizado para concatenar y ordenar será de tipo std::vector. Sin embargo, debe ser posible especificar un tipo de contenedor diferente.
-
-**Use Case #1:**
-```cpp
-  std::vector<int> v1 = {2, 3, 5};
-  std::vector<int> v2 = {10, 15, 20, 25};
-  std::vector<int> v3 = {0, 1};
-  
-  auto [median, ordered_data] = find_median_of_concatenated(v1, v2, v3);
-  std::cout << median << std::endl;
-  for (const auto& item: ordered_data) std::cout << item << " ";
-  std::cout << std::endl;
+```bash
+export DEMO_PASSWORD='...'
+perf/tokens/generar_tokens.sh dev
+k6 run -e BASE_URL="$URL" -e AUTH_MODE=cognito -e TOKENS_FILE="$PWD/perf/tokens/tokens.json" perf/k6/carga_cursos.js
 ```
 
-**Use Case #2:**
-```cpp
-  std::vector<int> v1 = {2, 3, 4, 9};
-  std::list<int> l1 = {10, 15, 20, 25};
-  std::deque<int> d1 = {0, 1};
-  
-  auto [median, ordered_data] = find_median_of_concatenated(v1, l1, d1);
-  std::vector<int> v2 = ordered_data;
-  std::cout << median << std::endl;
-  for (const auto& item: ordered_data) std::cout << item << " ";
-  std::cout << std::endl;
-```
+## Qué deja cada corrida
 
-**Use Case #3:**
-```cpp
-  std::vector<double> v1 = {2, 3, 4, 9};
-  std::list<double> l1 = {10, 15, 20, 25};
-  std::deque<double> d1 = {0, 1};
-  
-  auto [median, ordered_data] = find_median_of_concatenated<std::deque>(v1, l1, d1);
-  deque<double> dr = ordered_data;
-  std::cout << median << std::endl;
-  for (const auto& item: ordered_data) std::cout << item << " ";
-  std::cout << std::endl;
-```
+- En la consola: resumen con p95 y p99, tasa de errores y si se cumplieron las metas (`thresholds`).
+- `perf/reportes/resumen-<perfil>-<fecha>.json`: el mismo resumen en JSON, para el informe.
+- `perf/reportes/reporte-<perfil>.html`: gráficos de k6 (si se usa `K6_WEB_DASHBOARD_EXPORT`).
+- El dashboard `nubeduca-<stage>` con lo que pasó del lado de AWS en ese rango de tiempo.
 
-**Use Case #4:**
-```cpp
-  std::deque<float> d1 = {2};
-  
-  auto [median, ordered_data] = find_median_of_concatenated(d1);
-  std::cout << median << std::endl;
-  for (const auto& item: ordered_data) std::cout << item << " ";
-  std::cout << std::endl;
-```
+## Metas (provisionales)
 
+| Métrica | Meta |
+|---|---|
+| Peticiones fallidas | < 1 % |
+| p95 de `GET /courses` y `GET /courses/{courseId}` | < 1000 ms |
+| DLQ | 0 mensajes |
+
+Se ajustan a la sección 13 del documento de arquitectura.
+
+## Límites del Learner Lab
+
+- Presupuesto: cada cuenta tiene ~50 USD en total. El perfil `corto` (~700 peticiones) cuesta centavos. El perfil `estres` solo corre con `-e CONFIRMAR=si` y debe ir en la cuenta de integración (PERF-02), no en la de un dev.
+- Mira el gasto en el panel del Learner Lab antes y después de cada corrida.
+- Al terminar, borra lo que no uses: `serverless remove --stage dev` en el microservicio y en `infra/observabilidad`.
+- Todo usa `LabRole`; no se crea ningún rol IAM.
+
+- Concurrencia de Lambda de la cuenta: 1000 (`aws lambda get-account-settings`).
+- Las credenciales caducan cada ~4 h y los ID tokens de Cognito cada 1 h: regenera ambos antes de una corrida larga.
+- X-Ray no se puede leer con `voclabs` (#34); la evidencia es el dashboard y CloudWatch Logs.
+
+## Pendiente
+
+- Escenario de escritura (crear curso, matricular) para cargar también el bus y las colas. Requiere un periodo activo en ms-cursos.
