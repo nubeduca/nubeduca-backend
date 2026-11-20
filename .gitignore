@@ -5,3 +5,5 @@ localstack/.localstack/
 
 # Artefactos de build de Serverless Framework
 **/.serverless/
+perf/tokens/tokens.json
+perf/reportes/

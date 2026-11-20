@@ -1,0 +1,133 @@
+# PERF-01: dashboard de CloudWatch para las pruebas de carga.
+# Muestra latencia, errores, throttles y colas de TODOS los recursos nubeduca del stage,
+# con expresiones SEARCH: un microservicio nuevo aparece solo, sin editar este archivo.
+#
+# Despliegue:  cd infra/observabilidad && serverless deploy --stage dev
+# Ver:         CloudWatch → Dashboards → nubeduca-<stage>
+
+service: nubeduca-infra-observabilidad
+
+provider:
+  name: aws
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+
+resources:
+  Resources:
+    Dashboard:
+      Type: AWS::CloudWatch::Dashboard
+      Properties:
+        DashboardName: nubeduca-${sls:stage}
+        DashboardBody: |
+          {
+            "start": "-PT1H",
+            "periodOverride": "inherit",
+            "widgets": [
+              {
+                "type": "text", "x": 0, "y": 0, "width": 24, "height": 2,
+                "properties": {
+                  "markdown": "## Nubeduca · ${sls:stage}\nLatencia, errores, throttles y colas de todos los recursos del stage (PERF-01). Durante una prueba de k6, usa el rango de 15 minutos."
+                }
+              },
+              {
+                "type": "metric", "x": 0, "y": 2, "width": 12, "height": 6,
+                "properties": {
+                  "title": "API Gateway · latencia p95 (ms)",
+                  "region": "${aws:region}", "view": "timeSeries", "stacked": false,
+                  "metrics": [
+                    [ { "id": "e1", "expression": "SEARCH('{AWS/ApiGateway,ApiName} MetricName=\"Latency\" AND nubeduca AND ${sls:stage}', 'p95', 60)" } ]
+                  ]
+                }
+              },
+              {
+                "type": "metric", "x": 12, "y": 2, "width": 12, "height": 6,
+                "properties": {
+                  "title": "API Gateway · peticiones y errores 4XX / 5XX (por minuto)",
+                  "region": "${aws:region}", "view": "timeSeries", "stacked": false,
+                  "metrics": [
+                    [ { "id": "e1", "expression": "SEARCH('{AWS/ApiGateway,ApiName} MetricName=\"Count\" AND nubeduca AND ${sls:stage}', 'Sum', 60)", "yAxis": "right" } ],
+                    [ { "id": "e2", "expression": "SEARCH('{AWS/ApiGateway,ApiName} MetricName=\"4XXError\" AND nubeduca AND ${sls:stage}', 'Sum', 60)" } ],
+                    [ { "id": "e3", "expression": "SEARCH('{AWS/ApiGateway,ApiName} MetricName=\"5XXError\" AND nubeduca AND ${sls:stage}', 'Sum', 60)" } ]
+                  ]
+                }
+              },
+              {
+                "type": "metric", "x": 0, "y": 8, "width": 12, "height": 6,
+                "properties": {
+                  "title": "Lambda · duración p95 (ms)",
+                  "region": "${aws:region}", "view": "timeSeries", "stacked": false,
+                  "metrics": [
+                    [ { "id": "e1", "expression": "SEARCH('{AWS/Lambda,FunctionName} MetricName=\"Duration\" AND nubeduca AND ${sls:stage}', 'p95', 60)" } ]
+                  ]
+                }
+              },
+              {
+                "type": "metric", "x": 12, "y": 8, "width": 12, "height": 6,
+                "properties": {
+                  "title": "Lambda · errores y throttles (por minuto)",
+                  "region": "${aws:region}", "view": "timeSeries", "stacked": false,
+                  "metrics": [
+                    [ { "id": "e1", "expression": "SEARCH('{AWS/Lambda,FunctionName} MetricName=\"Errors\" AND nubeduca AND ${sls:stage}', 'Sum', 60)" } ],
+                    [ { "id": "e2", "expression": "SEARCH('{AWS/Lambda,FunctionName} MetricName=\"Throttles\" AND nubeduca AND ${sls:stage}', 'Sum', 60)" } ]
+                  ]
+                }
+              },
+              {
+                "type": "metric", "x": 0, "y": 14, "width": 12, "height": 6,
+                "properties": {
+                  "title": "Lambda · ejecuciones concurrentes (cuenta, límite 1000)",
+                  "region": "${aws:region}", "view": "timeSeries", "stacked": false, "stat": "Maximum", "period": 60,
+                  "metrics": [
+                    [ "AWS/Lambda", "ConcurrentExecutions" ]
+                  ]
+                }
+              },
+              {
+                "type": "metric", "x": 12, "y": 14, "width": 12, "height": 6,
+                "properties": {
+                  "title": "DynamoDB · throttles y lecturas consumidas",
+                  "region": "${aws:region}", "view": "timeSeries", "stacked": false,
+                  "metrics": [
+                    [ { "id": "e1", "expression": "SEARCH('{AWS/DynamoDB,TableName,Operation} MetricName=\"ThrottledRequests\" AND ${sls:stage}', 'Sum', 60)" } ],
+                    [ { "id": "e2", "expression": "SEARCH('{AWS/DynamoDB,TableName} MetricName=\"ConsumedReadCapacityUnits\" AND ${sls:stage}', 'Sum', 60)", "yAxis": "right" } ]
+                  ]
+                }
+              },
+              {
+                "type": "metric", "x": 0, "y": 20, "width": 12, "height": 6,
+                "properties": {
+                  "title": "SQS · mensajes en cola y antigüedad del más viejo (s)",
+                  "region": "${aws:region}", "view": "timeSeries", "stacked": false,
+                  "metrics": [
+                    [ { "id": "e1", "expression": "SEARCH('{AWS/SQS,QueueName} MetricName=\"ApproximateNumberOfMessagesVisible\" AND nubeduca AND ${sls:stage}', 'Maximum', 60)" } ],
+                    [ { "id": "e2", "expression": "SEARCH('{AWS/SQS,QueueName} MetricName=\"ApproximateAgeOfOldestMessage\" AND nubeduca AND ${sls:stage}', 'Maximum', 60)", "yAxis": "right" } ]
+                  ]
+                }
+              },
+              {
+                "type": "metric", "x": 12, "y": 20, "width": 12, "height": 6,
+                "properties": {
+                  "title": "SQS · DLQ (debe quedarse en 0)",
+                  "region": "${aws:region}", "view": "timeSeries", "stacked": false,
+                  "metrics": [
+                    [ { "id": "e1", "expression": "SEARCH('{AWS/SQS,QueueName} MetricName=\"ApproximateNumberOfMessagesVisible\" AND nubeduca AND ${sls:stage} AND dlq', 'Maximum', 60)" } ]
+                  ]
+                }
+              },
+              {
+                "type": "metric", "x": 0, "y": 26, "width": 24, "height": 6,
+                "properties": {
+                  "title": "EventBridge · reglas: eventos entregados y fallidos",
+                  "region": "${aws:region}", "view": "timeSeries", "stacked": false,
+                  "metrics": [
+                    [ { "id": "e1", "expression": "SEARCH('Namespace=\"AWS/Events\" MetricName=\"Invocations\" AND nubeduca AND ${sls:stage}', 'Sum', 60)" } ],
+                    [ { "id": "e2", "expression": "SEARCH('Namespace=\"AWS/Events\" MetricName=\"FailedInvocations\" AND nubeduca AND ${sls:stage}', 'Sum', 60)" } ]
+                  ]
+                }
+              }
+            ]
+          }
+
+  Outputs:
+    DashboardUrl:
+      Value: https://${aws:region}.console.aws.amazon.com/cloudwatch/home?region=${aws:region}#dashboards:name=nubeduca-${sls:stage}
