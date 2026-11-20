@@ -13,7 +13,7 @@ infra/observabilidad/           # dashboard nubeduca-<stage> en CloudWatch
 ## 1. Dashboard
 
 ```bash
-cd infra/observabilidad && serverless deploy --stage dev && cd ../..
+cd ~/environment/nubeduca-backend/infra/observabilidad && serverless deploy --stage dev
 ```
 
 En CloudWatch → Dashboards → `nubeduca-dev`. Usa expresiones `SEARCH`, así que muestra todos los recursos `nubeduca` del stage (API Gateway, Lambda, DynamoDB, SQS, DLQ y reglas de EventBridge) sin listarlos a mano.
@@ -26,16 +26,31 @@ curl -sL "https://github.com/grafana/k6/releases/download/$V/k6-$V-linux-amd64.t
 sudo mv "/tmp/k6-$V-linux-amd64/k6" /usr/local/bin/ && k6 version
 ```
 
-## 3. Corrida corta contra dev
-
-Con `ms-cursos` desplegado en `dev` (y su seed cargado):
+## 3. Desplegar ms-cursos con datos
 
 ```bash
+export AWS_DEFAULT_REGION=us-east-1          # boto3 no toma la región del CLI
+cd ~/environment/nubeduca-ms-cursos
+sls deploy --stage dev
+python3 scripts/poblar_datos.py --stage dev  # 30.000 cursos; --escala 0.1 para 3.000
+```
+
+`GET /courses` solo devuelve los cursos del docente (`ownerId`). Por eso k6 usa como usuarios a los 20 docentes del seed por tenant (`DOCENTES_SEED` en el script).
+
+## 4. Corrida corta contra dev
+
+Con `nohup` la prueba sigue aunque se cierre la consola de Cloud9:
+
+```bash
+cd ~/environment/nubeduca-backend
 mkdir -p perf/reportes
 URL=$(aws ssm get-parameter --name /nubeduca/dev/api/cursos/url --query Parameter.Value --output text)
 K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=perf/reportes/reporte-corto.html \
-  k6 run -e BASE_URL="$URL" perf/k6/carga_cursos.js
+  nohup k6 run -e BASE_URL="$URL" perf/k6/carga_cursos.js > perf/reportes/k6-corto.log 2>&1 &
+tail -f perf/reportes/k6-corto.log           # Ctrl+C solo deja de mirar; la prueba sigue
 ```
+
+Si alguna meta no se cumple, k6 termina con código 99 (`Exit 99`): la corrida es válida, el reporte se genera igual.
 
 Con Cognito (`authMode=cognito` en el servicio):
 
@@ -72,6 +87,19 @@ Se ajustan a la sección 13 del documento de arquitectura.
 - Concurrencia de Lambda de la cuenta: 1000 (`aws lambda get-account-settings`).
 - Las credenciales caducan cada ~4 h y los ID tokens de Cognito cada 1 h: regenera ambos antes de una corrida larga.
 - X-Ray no se puede leer con `voclabs` (#34); la evidencia es el dashboard y CloudWatch Logs.
+
+## Primera corrida (20-11-2026, dev, cuenta de Dev 2)
+
+5 usuarios virtuales, 1,5 min, `authMode=mock`, 30.000 cursos de seed.
+
+| Métrica | Resultado | Meta |
+|---|---|---|
+| Peticiones | 273 (~3/s) | — |
+| Errores | 0 % | < 1 % ✅ |
+| `GET /courses/{courseId}` p95 | 43 ms | < 1000 ms ✅ |
+| `GET /courses` p95 | 1,84 s | < 1000 ms ❌ |
+
+`GET /courses` tarda ~1,7 s incluso con un solo usuario: consulta toda la partición del tenant y filtra por `ownerId` con `FilterExpression` (`api/cursos.py`), sin índice por docente. Un GSI por `ownerId` (o una clave `OWNER#<userId>#COURSE#<courseId>`) debería dejarlo en decenas de ms.
 
 ## Pendiente
 
