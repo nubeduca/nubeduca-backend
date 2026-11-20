@@ -18,7 +18,7 @@ tenant_id = claims['custom:tenant_id']
 rol = claims['custom:role']
 ```
 
-- El header `Authorization` lleva el **ID token solo, sin `Bearer`**.
+- El header `Authorization` lleva el **ID token**; se acepta con o sin el prefijo `Bearer`.
 - Sin token o con token inválido: 401.
 - Despliega `infra/auth` antes que cualquier servicio, porque el ARN se importa.
 - Valores: tenants `utec`, `upc`, `pucp`; roles `STUDENT`, `TEACHER`, `ADMIN`.
