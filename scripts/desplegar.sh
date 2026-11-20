@@ -87,7 +87,7 @@ desplegar_carpeta() {  # desplegar_carpeta <nombre> <carpeta>
   fi
 }
 
-traer_repo() {  # traer_repo <ms> -> imprime la carpeta
+traer_repo() {  # traer_repo <ms> -> imprime la carpeta; retorna !=0 si falla el clon/fetch
   local repo="nubeduca-ms-$1" destino="$SERVICIOS_DIR/nubeduca-ms-$1"
   if [ "$SIMULAR" = "1" ]; then
     echo "$destino"
@@ -95,10 +95,12 @@ traer_repo() {  # traer_repo <ms> -> imprime la carpeta
   fi
   mkdir -p "$SERVICIOS_DIR"
   if [ -d "$destino/.git" ]; then
-    git -C "$destino" fetch -q origin main && git -C "$destino" checkout -q main \
-      && git -C "$destino" merge -q --ff-only origin/main >&2
+    git -C "$destino" fetch -q origin main \
+      && git -C "$destino" checkout -q main \
+      && git -C "$destino" merge -q --ff-only origin/main >&2 || return 1
   else
-    git clone -q "$ORG_GIT/$repo.git" "$destino" >&2
+    rm -rf "$destino"   # limpia un clon a medias de una corrida anterior (si no, git clone falla)
+    git clone -q "$ORG_GIT/$repo.git" "$destino" >&2 || return 1
   fi
   echo "$destino"
 }
