@@ -18,6 +18,8 @@ Desde el 13 nov. (decisión **D1**) este repo es **solo infraestructura**. Cada 
 | [`localstack/`](localstack/) | Entorno local (EventBridge, SQS, SNS, S3 y DynamoDB) | LOC-01 | ✅ |
 | [`plantillas/`](plantillas/) | Consumidor de eventos (regla + cola + DLQ) y endpoint protegido | PLT-04, PLT-05 | ✅ |
 | [`aws-learner-lab.md`](aws-learner-lab.md) | Guía de AWS: credenciales, stages, LabRole, CORS, `.env` y despliegue integrado | PLT-01, PLT-05, PLT-06 | ✅ |
+| [`qa/`](qa/) | E2E del curso piloto con 2 tenants (`qa/piloto.py`) y su guion | QA-01 | 🟢 38/38 en staging (cuenta de Dev 5) |
+| [`docs/rel-02-produccion.md`](docs/rel-02-produccion.md) | Runbook de salida a producción: condiciones, despliegue, curso piloto real y vuelta atrás. `desplegar.sh prod` exige Cognito | REL-02 | 🟡 |
 
 Convención de ramas y PRs en [CONTRIBUTING.md](CONTRIBUTING.md).
 

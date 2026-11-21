@@ -82,7 +82,18 @@ desplegar_carpeta() {  # desplegar_carpeta <nombre> <carpeta>
     PENDIENTES+=("$nombre")
     return 0
   fi
-  if correr "$carpeta" serverless deploy --stage "$STAGE"; then
+  local extra=()
+  if [ "$STAGE" = "prod" ] && [[ "$nombre" == ms-* ]]; then
+    # REL-02: en prod nunca con tokens mock (cualquiera podría armar "mock.<tenant>.ADMIN.<id>").
+    # authMode=cognito solo sirve si las rutas tienen el authorizer de Cognito; sin él, todo da 401.
+    if ! grep -Eq '^[[:space:]]*authorizer:' "$carpeta/serverless.yml"; then
+      echo "  $nombre: sin authorizer de Cognito en serverless.yml -> no se despliega en prod (ver docs/rel-02-produccion.md)" >&2
+      FALLIDOS+=("$nombre")
+      return 0
+    fi
+    extra=(--param="authMode=cognito")
+  fi
+  if correr "$carpeta" serverless deploy --stage "$STAGE" ${extra[@]+"${extra[@]}"}; then
     DESPLEGADOS+=("$nombre")
   else
     echo "  $nombre: FALLÓ el despliegue" >&2
@@ -156,10 +167,13 @@ done
 # --- Frontend --------------------------------------------------------------------
 if [ -z "$SOLO" ] && [ "$SIN_FRONTEND" = "0" ]; then
   paso "frontend (Amplify)"
+  FRONT_EXTRA=()
+  # REL-02: en prod el frontend usa el login de Cognito (VITE_AUTH_MODE=cognito), nunca los tokens mock.
+  [ "$STAGE" = "prod" ] && FRONT_EXTRA=(--param="authMode=cognito")
   if [ "$SIMULAR" = "1" ]; then
-    echo "  [infra/frontend] desplegar.sh $STAGE"
+    echo "  [infra/frontend] desplegar.sh $STAGE ${FRONT_EXTRA[*]-}"
     DESPLEGADOS+=("frontend")
-  elif "$RAIZ/infra/frontend/desplegar.sh" "$STAGE"; then
+  elif "$RAIZ/infra/frontend/desplegar.sh" "$STAGE" ${FRONT_EXTRA[@]+"${FRONT_EXTRA[@]}"}; then
     DESPLEGADOS+=("frontend")
   else
     FALLIDOS+=("frontend")
