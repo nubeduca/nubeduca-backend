@@ -58,14 +58,17 @@ resources:
           Fn::Base64: |
             #!/bin/bash
             set -euxo pipefail
-            dnf install -y git python3 python3-pip tar xz
+            # Python 3.11: el seed (poblar_datos.py) usa sintaxis str | None (3.10+); el python3 por defecto de AL2023 es 3.9.
+            # Dejamos python3 -> 3.11 en /usr/local/bin (antes que /usr/bin en el PATH) sin tocar el python del sistema (dnf lo usa).
+            dnf install -y git python3.11 python3.11-pip tar xz
+            ln -sf /usr/bin/python3.11 /usr/local/bin/python3
             cd /opt
             curl -fsSLO https://nodejs.org/dist/${self:custom.nodeVersion}/node-${self:custom.nodeVersion}-linux-x64.tar.xz
             tar -xJf node-${self:custom.nodeVersion}-linux-x64.tar.xz
             ln -sf /opt/node-${self:custom.nodeVersion}-linux-x64/bin/* /usr/local/bin/
             npm install -g serverless@4
             ln -sf /opt/node-${self:custom.nodeVersion}-linux-x64/bin/serverless /usr/local/bin/serverless
-            sudo -u ec2-user python3 -m pip install --user boto3
+            sudo -u ec2-user python3.11 -m pip install --user boto3
             sudo -u ec2-user git clone https://github.com/nubeduca/nubeduca-backend.git /home/ec2-user/nubeduca-backend
             echo "listo" > /home/ec2-user/nubeduca-despliegue-listo
 
