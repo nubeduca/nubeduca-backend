@@ -50,7 +50,10 @@ else
     command -v "$herramienta" > /dev/null || { echo "Falta $herramienta en este equipo." >&2; exit 1; }
   done
 fi
-SERVICIOS_DIR="${NUBEDUCA_SERVICIOS_DIR:-$RAIZ/../servicios}"
+# En Git Bash, con MSYS_NO_PATHCONV=1, git.exe recibiría "/c/Users/..." literal y clonaría en C:/c/Users/...
+# `pwd -W` da la ruta de Windows (C:/Users/...), que entienden git y bash. En Linux no existe y se usa `pwd`.
+RAIZ_NATIVA="$(cd "$RAIZ" && { pwd -W 2>/dev/null || pwd; })"
+SERVICIOS_DIR="${NUBEDUCA_SERVICIOS_DIR:-$RAIZ_NATIVA/../servicios}"
 
 DESPLEGADOS=()
 PENDIENTES=()

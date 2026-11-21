@@ -21,3 +21,6 @@ crear docente.demo@utec.edu.pe utec TEACHER
 crear alumno.demo@utec.edu.pe utec STUDENT
 crear docente.demo@upc.edu.pe upc TEACHER
 crear alumno.demo@upc.edu.pe upc STUDENT
+# QA-01 (qa/piloto.py --auth cognito) necesita un ADMIN por tenant para abrir el periodo.
+crear admin.demo@utec.edu.pe utec ADMIN
+crear admin.demo@upc.edu.pe upc ADMIN
