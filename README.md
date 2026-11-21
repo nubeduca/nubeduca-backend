@@ -12,9 +12,9 @@ Desde el 13 nov. (decisión **D1**) este repo es **solo infraestructura**. Cada 
 | [`infra/bus/`](infra/bus/) | Bus `lms-<stage>` de EventBridge, Archive y SNS FIFO de notas | PLT-04 | ✅ |
 | [`infra/auth/`](infra/auth/) | Cognito (User Pool y App Client) con `tenant_id` y rol en el token | AUTH-01 | ✅ en `main` (PR #9); `scripts/crear_usuarios_demo.sh` crea usuarios de prueba |
 | [`infra/frontend/`](infra/frontend/) | Amplify Hosting de `nubeduca-frontend` como IaC, con variables `VITE_*` leídas de SSM | PLT-06 | ✅ |
-| `infra/despliegue/` | VM `nubeduca-despliegue` (EC2 con `LabInstanceProfile`, sin puertos) | PLT-06 | 🟡 [PR #8](https://github.com/nubeduca/nubeduca-backend/pull/8) |
+| `infra/despliegue/` | VM `nubeduca-despliegue` (EC2 con `LabInstanceProfile`, sin puertos) | PLT-06 | ✅ |
 | [`scripts/cuenta.sh`](scripts/cuenta.sh) | Carga las credenciales del `.env` y verifica la cuenta antes de desplegar | PLT-06 | ✅ |
-| `scripts/desplegar.sh` | Despliega todo en orden: base → bus → auth → 6 `ms-*` → frontend | PLT-06 | 🟡 [PR #8](https://github.com/nubeduca/nubeduca-backend/pull/8) |
+| `scripts/desplegar.sh` | Despliega todo en orden: base → bus → auth → 6 `ms-*` → frontend | PLT-06 | ✅ |
 | [`localstack/`](localstack/) | Entorno local (EventBridge, SQS, SNS, S3 y DynamoDB) | LOC-01 | ✅ |
 | [`plantillas/`](plantillas/) | Consumidor de eventos (regla + cola + DLQ) y endpoint protegido | PLT-04, PLT-05 | ✅ |
 | [`aws-learner-lab.md`](aws-learner-lab.md) | Guía de AWS: credenciales, stages, LabRole, CORS, `.env` y despliegue integrado | PLT-01, PLT-05, PLT-06 | ✅ |
