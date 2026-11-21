@@ -28,7 +28,7 @@ import urllib.error
 import urllib.request
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import boto3
 
@@ -162,7 +162,7 @@ class Recorrido:
         return "admin, docente y alumno con perfil (user.provisioned)"
 
     def abrir_periodo(self):
-        hoy = datetime.now(timezone.utc).date()
+        hoy = datetime.now(UTC).date()
         s, b = llamar("POST", self.api("usuarios", "/terms"), self.admin.token,
                       {"name": f"QA {self.corrida}", "startsOn": hoy.isoformat(),
                        "endsOn": (hoy + timedelta(days=120)).isoformat()})
@@ -253,7 +253,7 @@ class Recorrido:
 
     def tarea(self):
         cid = self.datos["courseId"]
-        vence = (datetime.now(timezone.utc) + timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        vence = (datetime.now(UTC) + timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
         s, b = llamar("POST", self.api("evaluaciones", f"/courses/{cid}/assignments"), self.docente.token,
                       {"title": "Laboratorio 4: SQS y DLQ", "instructions": "Sube tu informe en PDF.",
                        "dueAt": vence, "maxScore": 20, "allowLate": False})
@@ -272,7 +272,7 @@ class Recorrido:
             raise Fallo(f"el EICAR quedó en {estado}")
         # ms-evaluaciones conoce el resultado del antivirus por file.scanned: un INFECTED nunca se acepta.
         time.sleep(5)
-        s, b = llamar("POST", ruta, self.alumno.token, {"fileIds": [sucio]})
+        s, _ = llamar("POST", ruta, self.alumno.token, {"fileIds": [sucio]})
         if s != 409:
             raise Fallo(f"la entrega con el EICAR respondió {s}, se esperaba 409")
 
@@ -415,7 +415,7 @@ def aislamiento(urls, recorridos):
             ("historial de la nota", "calificaciones", f"/grades/{datos['gradeId']}/history", b.admin),
         ]
         for nombre, ms, ruta, actor in pruebas:
-            s, cuerpo = llamar("GET", urls[ms] + ruta, actor.token)
+            s, _ = llamar("GET", urls[ms] + ruta, actor.token)
             bien = s in (403, 404)
             pasos.append({"tenant": f"{b.tenant}->{a.tenant}", "paso": f"Aislamiento: {nombre}",
                           "estado": "OK" if bien else "FALLA", "segundos": 0,
@@ -440,7 +440,7 @@ def urls_de(stage):
 
 def salud(urls):
     for ms, url in urls.items():
-        s, b = llamar("GET", url + "/health")
+        s, _ = llamar("GET", url + "/health")
         if s != 200:
             raise Fallo(f"ms-{ms} /health respondió {s}")
         print(f"  OK    ms-{ms:15} {url}")
@@ -458,7 +458,7 @@ def main():
     if len(tenants) != 2:
         raise SystemExit("--tenants necesita exactamente 2 tenants, por ejemplo utec,upc")
 
-    corrida = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+    corrida = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
     print(f"QA-01 · stage {args.stage} · tenants {', '.join(tenants)} · auth {args.auth} · corrida {corrida}")
     print("Salud de los 6 microservicios:")
     urls = urls_de(args.stage)
