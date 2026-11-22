@@ -11,6 +11,8 @@ provider:
   name: aws
   region: us-east-1
   stage: ${opt:stage, 'dev'}
+  iam:
+    role: arn:aws:iam::${aws:accountId}:role/LabRole
 
 resources:
   Resources:
