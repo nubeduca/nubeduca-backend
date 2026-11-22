@@ -10,7 +10,7 @@ Runbook de [REL-02](https://github.com/nubeduca/nubeduca-backlog/issues/33) (Dev
 |---|---|---|---|
 | 1 | Staging del equipo desplegado con alarmas en verde | `scripts/verificar_alarmas.sh staging` | [REL-01](https://github.com/nubeduca/nubeduca-backlog/issues/28) |
 | 2 | El E2E del piloto pasa en ese staging | `python qa/piloto.py --stage staging` → `38/38 pasos OK` | [QA-01](https://github.com/nubeduca/nubeduca-backlog/issues/31) |
-| 3 | **Las rutas de los 6 microservicios tienen el authorizer de Cognito** | `grep -n "authorizer:" serverless.yml` en cada `nubeduca-ms-*` (ver §2) | REL-01 · AUTH-01 |
+| 3 | **Las rutas de los 6 microservicios tienen el authorizer de Cognito** (hecho en contenidos y calificaciones; faltan usuarios, cursos, evaluaciones y notificaciones) | `grep -n "authorizer:" serverless.yml` en cada `nubeduca-ms-*` (ver §2) | REL-01 · AUTH-01 |
 | 4 | El E2E pasa con login real | `python qa/piloto.py --stage staging --auth cognito --password ...` | QA-01 |
 | 5 | Outbox con EventBridge Pipes en los 6 microservicios | `params.default.outbox: pipe` en cada `serverless.yml` | [ADR-008](https://github.com/nubeduca/nubeduca-backlog/issues/35) |
 | 6 | Se sabe en qué cuenta vive prod y quién tiene sus credenciales | `scripts/cuenta.sh` con el `.env` de esa cuenta | REL-01 (D2) |
@@ -35,23 +35,46 @@ En `dev` y `staging` no cambia nada.
 
 ### Cómo agregar el authorizer en un microservicio
 
-En cada ruta protegida (todas menos `/health`), con el User Pool que exporta `infra/auth`:
+Ya está hecho y probado en **ms-contenidos** (nubeduca/nubeduca-ms-contenidos#5) y **ms-calificaciones** (nubeduca/nubeduca-ms-calificaciones#8): se puede copiar de ahí. Son tres piezas en `serverless.yml`:
+
+**1. El authorizer, solo con `authMode=cognito`.** Con `mock` no se crea, así que `dev` y `staging` siguen funcionando con los tokens de prueba:
 
 ```yaml
-functions:
-  cursos:
-    handler: api/cursos.lambda_handler
-    events:
-      - http:
-          path: /courses
-          method: get
-          cors: true
-          authorizer:
-            type: COGNITO_USER_POOLS
-            arn: ${cf:nubeduca-infra-auth-${sls:stage}.UserPoolArn}
+custom:
+  userPoolArn: ${param:userPoolArn, cf:nubeduca-infra-auth-${sls:stage}.UserPoolArn, ''}
+  autorizador:
+    cognito:
+      type: COGNITO_USER_POOLS
+      arn: ${self:custom.userPoolArn}
 ```
 
-El frontend tiene que mandar el **ID token** (no el access token), porque solo ese trae `custom:tenant_id` y `custom:role`.
+**2. En cada ruta protegida** (todas menos `/health`):
+
+```yaml
+      - http: { path: /courses, method: get, cors: true, authorizer: '${self:custom.autorizador.${param:authMode}, null}' }
+```
+
+**3. CORS en los errores de API Gateway.** El 401 del authorizer no pasa por la Lambda; sin esto llega sin `Access-Control-Allow-Origin` y el navegador lo muestra como "error de CORS":
+
+```yaml
+resources:
+  Resources:
+    RespuestaGateway4XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        RestApiId: !Ref ApiGatewayRestApi
+        ResponseType: DEFAULT_4XX
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Authorization,Content-Type'"
+    # y lo mismo con DEFAULT_5XX
+```
+
+La primera vez que se despliega la `GatewayResponse`, el 401 puede salir sin CORS hasta el siguiente `serverless deploy`.
+
+**Para probarlo:** `serverless package --param="authMode=cognito"` debe generar un `AWS::ApiGateway::Authorizer` y todas las rutas (menos `/health`) con `COGNITO_USER_POOLS`. Con `authMode=mock`, ninguno.
+
+El frontend tiene que mandar el **ID token** (no el access token), porque solo ese trae `custom:tenant_id` y `custom:role`. Probado: con el access token, el authorizer responde 401.
 
 ## 3. Despliegue
 
