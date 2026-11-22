@@ -86,7 +86,9 @@ desplegar_carpeta() {  # desplegar_carpeta <nombre> <carpeta>
   if [ "$STAGE" = "prod" ] && [[ "$nombre" == ms-* ]]; then
     # REL-02: en prod nunca con tokens mock (cualquiera podría armar "mock.<tenant>.ADMIN.<id>").
     # authMode=cognito solo sirve si las rutas tienen el authorizer de Cognito; sin él, todo da 401.
-    if ! grep -Eq '^[[:space:]]*authorizer:' "$carpeta/serverless.yml"; then
+    # Vale en las dos formas de escribir una ruta: en bloque ("authorizer:" en su propia línea) o en
+    # una línea ("- http: { path: ..., authorizer: '...' }"). Las líneas de comentario no cuentan.
+    if ! grep -Ev '^[[:space:]]*#' "$carpeta/serverless.yml" | grep -Eq '(^|[[:space:],{])authorizer:'; then
       echo "  $nombre: sin authorizer de Cognito en serverless.yml -> no se despliega en prod (ver docs/rel-02-produccion.md)" >&2
       FALLIDOS+=("$nombre")
       return 0
